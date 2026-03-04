@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import '../ble/BleService.dart';
 import '../model/GlobalVarClass.dart';
 import '../model/DataParser.dart';
-import 'Frg1MainPage.dart';
-import 'Frg2DetailPage.dart';
-import 'Frg3ParaPage.dart';
+import '../utils/SharedUtil.dart';
+import 'MainPage.dart';
+import 'DetailPage.dart';
+import 'ParaPage.dart';
 
 class SelectBarPage extends StatefulWidget {
   @override
@@ -123,6 +125,75 @@ class _SelectBarPageState extends State<SelectBarPage> {
     );
   }
 
+  /// 顯示解析失敗歷史 Dialog
+  Future<void> showFailHistory() async {
+    final keys = ["pack", "bcu", "unknown"];
+    Map<String, List<String>> history = {};
+    for (var key in keys) {
+      List<Map<String, String>> rawList = await SharedUtil.getFailHistory(key);
+      history[key] = rawList
+          .map((e) => "${e['time'] ?? ''} - ${e['reason'] ?? ''}")
+          .toList();
+    }
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("解析失敗歷史"),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 400,
+          child: history.values.every((list) => list.isEmpty)
+              ? const Center(child: Text("暫無失敗紀錄"))
+              : ListView(
+                  children: [
+                    for (var key in keys)
+                      if (history[key]!.isNotEmpty)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              key.toUpperCase(),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue,
+                              ),
+                            ),
+                            ...history[key]!.map((e) => Text(e)),
+                            const SizedBox(height: 10),
+                          ],
+                        ),
+                  ],
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              for (var key in keys) await SharedUtil.clearFailHistory(key);
+              Navigator.pop(context);
+              setState(() {}); // refresh UI
+            },
+            child: const Text("清除全部"),
+          ),
+          TextButton(
+            onPressed: () {
+              final allText = history.values.expand((e) => e).join("\n");
+              Clipboard.setData(ClipboardData(text: allText));
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(const SnackBar(content: Text("已複製到剪貼簿")));
+            },
+            child: const Text("全部複製"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("關閉"),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -131,19 +202,21 @@ class _SelectBarPageState extends State<SelectBarPage> {
         actions: [
           IconButton(
             icon: Icon(
-              // 根據狀態改 Icon
               GlobalPara.instance.btIsConnected
-                  ? Icons
-                        .bluetooth_connected // 已連線
+                  ? Icons.bluetooth_connected
                   : (isScanning
                         ? Icons.bluetooth_searching
-                        : Icons.bluetooth_disabled), // 掃描中 / 未連線
+                        : Icons.bluetooth_disabled),
             ),
             color: GlobalPara.instance.btIsConnected
-                ? Colors
-                      .green // 已連線綠色
-                : (isScanning ? Colors.orange : Colors.grey), // 掃描中橘色 / 未連線灰色
+                ? Colors.green
+                : (isScanning ? Colors.orange : Colors.grey),
             onPressed: showScanDialog,
+          ),
+          IconButton(
+            icon: const Icon(Icons.error_outline),
+            tooltip: "解析失敗歷史",
+            onPressed: showFailHistory,
           ),
         ],
       ),
