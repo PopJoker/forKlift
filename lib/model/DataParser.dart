@@ -26,25 +26,25 @@ class DataParser {
       if (parts.length > 1 && parts[1] != "0" && parts[1].isNotEmpty) {
         info.loVoltage = "${parts[1]} mv";
       } else {
-        await SharedUtil.addFailRecord("pack", "loVoltage 空或 0");
+        await SharedUtil.addFailRecord("pack", "loVoltage 錯誤為 0");
       }
 
       if (parts.length > 2 && parts[2] != "0" && parts[2].isNotEmpty) {
         info.hiVoltage = "${parts[2]} mv";
       } else {
-        await SharedUtil.addFailRecord("pack", "hiVoltage 空或 0");
+        await SharedUtil.addFailRecord("pack", "hiVoltage 錯誤為 0");
       }
 
-      if (parts.length > 3 && (int.tryParse(parts[3]) ?? 0) != 0) {
+      // if (parts.length > 3 && (int.tryParse(parts[3]) ?? 0) != 0) {
         info.current = int.tryParse(parts[3])?.toString() ?? info.current;
-      } else {
-        await SharedUtil.addFailRecord("pack", "current 空或 0");
-      }
+      // } else {
+      //   await SharedUtil.addFailRecord("pack", "current 錯誤為 0");
+      // }
 
       if (parts.length > 4 && parts[4] != "0" && parts[4].isNotEmpty) {
         info.soc = "${parts[4]} %";
       } else {
-        await SharedUtil.addFailRecord("pack", "SOC 空或 0");
+        await SharedUtil.addFailRecord("pack", "SOC 錯誤為 0");
       }
 
       // LoStatus / HiStatus
@@ -85,7 +85,7 @@ class DataParser {
           case 11: info.hiTs2Temp = temp != -9999 ? temp.toStringAsFixed(1) : ""; break;
           case 12: info.hiTs3Temp = temp != -9999 ? temp.toStringAsFixed(1) : ""; break;
         }
-        if (temp == -9999) await SharedUtil.addFailRecord("pack", "temp${i-6} 空或 0");
+        if (temp == -9999) await SharedUtil.addFailRecord("pack", "temp${i-6} 錯誤為 0");
       }
 
       // firmware
@@ -97,19 +97,19 @@ class DataParser {
         if (parts.length > 14 + i && parts[14 + i].isNotEmpty && parts[14 + i] != "0") {
           info.cellVoltage[i] = parts[14 + i];
         } else {
-          await SharedUtil.addFailRecord("pack", "cellVoltage[$i] 空或 0");
+          await SharedUtil.addFailRecord("pack", "cellVoltage[$i] 錯誤為 0");
         }
       }
 
       // 容量 & SoH
       if (parts.length > 36 && parts[36].isNotEmpty && parts[36] != "0") info.remainingCapacity = parts[36];
-      else await SharedUtil.addFailRecord("pack", "remainingCapacity 空或 0");
+      else await SharedUtil.addFailRecord("pack", "remainingCapacity 錯誤為 0");
 
       if (parts.length > 37 && parts[37].isNotEmpty && parts[37] != "0") info.fullChargeCapacity = parts[37];
-      else await SharedUtil.addFailRecord("pack", "fullChargeCapacity 空或 0");
+      else await SharedUtil.addFailRecord("pack", "fullChargeCapacity 錯誤為 0");
 
       if (parts.length > 38 && parts[38].isNotEmpty && parts[38] != "0") info.soh = parts[38];
-      else await SharedUtil.addFailRecord("pack", "SOH 空或 0");
+      else await SharedUtil.addFailRecord("pack", "SOH 錯誤為 0");
 
       // 更新全局 Map
       GlobalPara.instance.PackInfoMap[info.packNum] = info;
@@ -121,7 +121,7 @@ class DataParser {
     }
   }
 
-  /// BCU 解析，每個欄位空或 0 都會紀錄
+  /// BCU 解析，每個欄位錯誤為 0 都會紀錄
   static Future<BcuInfoData?> parseBcu(String str) async {
     final bcu = GlobalPara.instance.BcuInfo ?? BcuInfoData();
     try {
@@ -133,21 +133,22 @@ class DataParser {
       // voltage
       double tmpVoltage = (parts.length > 1 ? double.tryParse(parts[1]) ?? 0 : 0) / 1000;
       if (tmpVoltage != 0) bcu.maxBatteryVoltage = tmpVoltage.toStringAsFixed(3);
-      else await SharedUtil.addFailRecord("bcu", "maxBatteryVoltage 空或 0");
+      else await SharedUtil.addFailRecord("bcu", "maxBatteryVoltage 錯誤為 0");
 
       double tmpCurrent = (parts.length > 2 ? double.tryParse(parts[2]) ?? 0 : 0) / 100;
-      if (tmpCurrent != 0) bcu.batteryCurrent = tmpCurrent.toStringAsFixed(3);
-      else await SharedUtil.addFailRecord("bcu", "batteryCurrent 空或 0");
+      //if (tmpCurrent != 0) 
+      bcu.batteryCurrent = tmpCurrent.toStringAsFixed(3);
+      //else await SharedUtil.addFailRecord("bcu", "batteryCurrent 錯誤為 0");
 
       if (parts.length > 3 && parts[3] != "0" && parts[3].isNotEmpty) bcu.batterySOC = parts[3];
-      else await SharedUtil.addFailRecord("bcu", "batterySOC 空或 0");
+      else await SharedUtil.addFailRecord("bcu", "batterySOC 錯誤為 0");
 
       // RemainingCap B1~B7
       for (int i = 1; i <= 7; i++) {
         if (parts.length > 31 + i && parts[31 + i].isNotEmpty && parts[31 + i] != "0") {
           bcu['remainingCapB$i'] = parts[31 + i];
         } else {
-          await SharedUtil.addFailRecord("bcu", "remainingCapB$i 空或 0");
+          await SharedUtil.addFailRecord("bcu", "remainingCapB$i 錯誤為 0");
         }
       }
 
@@ -156,7 +157,7 @@ class DataParser {
         if (parts.length > 24 + i && parts[24 + i].isNotEmpty && parts[24 + i] != "0") {
           bcu['batteryVoltage$i'] = parts[24 + i];
         } else {
-          await SharedUtil.addFailRecord("bcu", "batteryVoltage$i 空或 0");
+          await SharedUtil.addFailRecord("bcu", "batteryVoltage$i 錯誤為 0");
         }
       }
 
@@ -164,7 +165,7 @@ class DataParser {
       for (int i = 1; i <= 7; i++) {
         double temp = (parts.length > 3 + i ? double.tryParse(parts[3 + i]) ?? 0 : 0);
         if (temp != 0) bcu['maxTemperature$i'] = (temp / 10).toStringAsFixed(1);
-        else await SharedUtil.addFailRecord("bcu", "maxTemperature$i 空或 0");
+        else await SharedUtil.addFailRecord("bcu", "maxTemperature$i 錯誤為 0");
       }
 
       // LoStatus1~7

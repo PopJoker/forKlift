@@ -139,66 +139,154 @@ class _SelectBarPageState extends State<SelectBarPage> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text("解析失敗歷史"),
+        title: const Text(
+          "解析失敗歷史",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         content: SizedBox(
           width: double.maxFinite,
           height: 400,
-          child: history.values.every((list) => list.isEmpty)
-              ? const Center(child: Text("暫無失敗紀錄"))
-              : ListView(
-                  children: [
-                    for (var key in keys)
-                      if (history[key]!.isNotEmpty)
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              key.toUpperCase(),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blue,
-                              ),
-                            ),
-                            ...history[key]!.map((e) => Text(e)),
-                            const SizedBox(height: 10),
-                          ],
-                        ),
-                  ],
+          child: Stack(
+            children: [
+              // 歷史紀錄
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: history.values.every((list) => list.isEmpty)
+                        ? const Center(child: Text("暫無失敗紀錄"))
+                        : ListView.separated(
+                            itemCount: keys.length,
+                            separatorBuilder: (_, __) => const Divider(),
+                            itemBuilder: (context, index) {
+                              final key = keys[index];
+                              final list = history[key]!;
+                              if (list.isEmpty) return const SizedBox();
+                              return Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.blueGrey.shade50,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      key.toUpperCase(),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.blue,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    ...list.map(
+                                      (e) => Text(
+                                        e,
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          color: Colors.black87,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                  const SizedBox(height: 24), // 避開 Maker
+                ],
+              ),
+
+              // Maker 名稱右下角
+              Positioned(
+                right: 0,
+                bottom: 0,
+                child: Text(
+                  "M.K: Maverick Tu",
+                  style: TextStyle(
+                    fontStyle: FontStyle.italic,
+                    color: Colors.grey[600],
+                    fontSize: 10,
+                  ),
                 ),
+              ),
+            ],
+          ),
         ),
         actions: [
-          TextButton(
-            onPressed: () async {
-              for (var key in keys) await SharedUtil.clearFailHistory(key);
-              Navigator.pop(context);
-              setState(() {}); // refresh UI
-            },
-            child: const Text("清除全部"),
-          ),
-          TextButton(
-            onPressed: () {
-              final allText = history.values.expand((e) => e).join("\n");
-              Clipboard.setData(ClipboardData(text: allText));
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(const SnackBar(content: Text("已複製到剪貼簿")));
-            },
-            child: const Text("全部複製"),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("關閉"),
+          Row(
+            children: [
+              TextButton(
+                onPressed: () async {
+                  await Future.wait(
+                    keys.map((key) => SharedUtil.clearFailHistory(key)),
+                  );
+                  Navigator.pop(context);
+                  setState(() {});
+                },
+                child: const Text("清除全部"),
+              ),
+              TextButton(
+                onPressed: () {
+                  final allText = history.values.expand((e) => e).join("\n");
+                  Clipboard.setData(ClipboardData(text: allText));
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(const SnackBar(content: Text("已複製到剪貼簿")));
+                },
+                child: const Text("全部複製"),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("關閉"),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
+  void handleBleButton() {
+    if (GlobalPara.instance.btIsConnected) {
+      // 已連線 → 詢問是否斷線
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text("BLE 已連線"),
+          content: const Text("是否斷開目前連線？"),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("取消"),
+            ),
+            TextButton(
+              onPressed: () async {
+                await BleService.instance.disconnect();
+                GlobalPara.instance.btIsConnected = false;
+                Navigator.pop(context);
+                setState(() {}); // 更新按鈕顏色
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(const SnackBar(content: Text("已斷開連線")));
+              },
+              child: const Text("斷開連線"),
+            ),
+          ],
+        ),
+      );
+    } else {
+      // 未連線 → 掃描
+      showScanDialog();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("GUS BMS"),
+        title: const Text("GUS F-Lift"),
         actions: [
           IconButton(
             icon: Icon(
@@ -211,7 +299,7 @@ class _SelectBarPageState extends State<SelectBarPage> {
             color: GlobalPara.instance.btIsConnected
                 ? Colors.green
                 : (isScanning ? Colors.orange : Colors.grey),
-            onPressed: showScanDialog,
+            onPressed: handleBleButton,
           ),
           IconButton(
             icon: const Icon(Icons.error_outline),
